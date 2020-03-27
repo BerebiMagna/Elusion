@@ -127,32 +127,33 @@ public class PlaceRooms : MonoBehaviour
         }
     }
 
+
+    //public static RaycastHit[] SphereCastAll(Ray ray, float radius, float maxDistance = Mathf.Infinity, int layerMask = DefaultRaycastLayers, QueryTriggerInteraction queryTriggerInteraction = QueryTriggerInteraction.UseGlobal); 
     private void PlaceRoomEclipse(int sizeX, int sizeZ)
     {
-        if (sizeX % 2 != 0 && sizeZ % 2 != 0)
+        if (Input.GetMouseButton(0))
         {
-            if (Input.GetMouseButton(0))
+            if (!Miscellaneous.IsPointerOverUIElement())
             {
-                if (!Miscellaneous.IsPointerOverUIElement())
+                GameObject tile = GetTileSingular();
+                Collider[] hits = Physics.OverlapBox(tile.transform.position, new Vector3(sizeX * 6, 5, sizeZ * 6));
+                Debug.Log("Start");
+                foreach (Collider hit in hits)
                 {
-                    Vector3 origin = cam.ScreenToWorldPoint(Input.mousePosition);
-                    RaycastHit[] hits = Physics.SphereCastAll(origin, sizeX * 10, Vector3.down, Mathf.Infinity);
-                    foreach(RaycastHit hit in hits)
+                    Debug.Log(hit.gameObject.name);
+                    if (!roomPosList.Contains(hit.transform.position))
                     {
-                        if (!roomPosList.Contains(hit.transform.position))
+                        GameObject room = GameObject.Instantiate(roomPrefabsArray[floorRoomIndex.Key][floorRoomIndex.Value], hit.transform.position, Quaternion.identity, roomParent.transform);
+                        room.name = string.Format("({0}, {1}, {2})", hit.transform.position.x, hit.transform.position.y, hit.transform.position.z);
+                        roomList.Add(room);
+                        roomPosList.Add(room.transform.position);
+                        string gridName = string.Format("Tile ({0}, {1})", (int)hit.transform.position.z / 10, (int)hit.transform.position.x / 10);
+                        foreach (GameObject gObj in gridArray)
                         {
-                            GameObject room = GameObject.Instantiate(roomPrefabsArray[floorRoomIndex.Key][floorRoomIndex.Value], hit.transform.position, Quaternion.identity, roomParent.transform);
-                            room.name = string.Format("({0}, {1}, {2})", hit.transform.position.x, hit.transform.position.y, hit.transform.position.z);
-                            roomList.Add(room);
-                            roomPosList.Add(room.transform.position);
-                            string gridName = string.Format("Tile ({0}, {1})", (int)hit.transform.position.z / 10, (int)hit.transform.position.x / 10);
-                            foreach (GameObject gObj in gridArray)
+                            if (gObj.name == gridName)
                             {
-                                if (gObj.name == gridName)
-                                {
-                                    gObj.GetComponent<MeshRenderer>().enabled = false;
-                                    break;
-                                }
+                                gObj.GetComponent<MeshRenderer>().enabled = false;
+                                break;
                             }
                         }
                     }
@@ -173,7 +174,6 @@ public class PlaceRooms : MonoBehaviour
                     if (tile.tag == "Base" && roomPosList.Contains(tile.transform.position))
                     {
                         string roomName = string.Format("({0}, {1}, {2})", tile.transform.position.x, tile.transform.position.y, tile.transform.position.z);
-                        Debug.Log(roomName);
                         foreach (GameObject gObj in roomList)
                         {
                             if (gObj.name == roomName)
@@ -340,7 +340,7 @@ public class PlaceRooms : MonoBehaviour
         }
         else if(brushIndex == 2)
         {
-            PlaceRoomEclipse(3, 3);
+            PlaceRoomEclipse(squareBrushX, squareBrushZ);
         }
     }
 }
