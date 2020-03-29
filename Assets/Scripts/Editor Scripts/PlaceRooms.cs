@@ -8,14 +8,18 @@ public class PlaceRooms : MonoBehaviour
     public int size = 100;
     public int brushIndex = 0;
 
-    [Header("Brush Settings")]
-    public int squareBrushX = 3;
-    public int squareBrushZ= 3;
-
     [Header("Place Rooms Misc")]
     public Camera cam;
     public GameObject basePrefab;
     public EditorCameraMovement editorCamMovScript;
+    public EditorMenus editorMenusScript;
+
+    [Header("Floor 0")]
+    [Header("Place Rooms' Holograms")]
+    public GameObject h_f0R1n;
+    public GameObject h_f0R0;
+    public GameObject h_f0R1;
+    public GameObject h_f0R2;
 
     [Header("Floor 0")]
     [Header("Place Rooms' Room Prefabs")]
@@ -28,8 +32,17 @@ public class PlaceRooms : MonoBehaviour
     private GameObject[] gridArray;
     private List<GameObject> roomList;
     private List<Vector3> roomPosList;
+    private List<GameObject> hologramRoomList;
+    private List<Vector3> hologramRoomPosList;
     private Dictionary<int, GameObject>[] roomPrefabsArray;
+    private Dictionary<int, GameObject>[] roomPrefabsHologramArray;
     private KeyValuePair<int, int> floorRoomIndex;
+
+
+    public void ChangeBrushIndex(int index)
+    {
+        brushIndex = index;
+    }
 
     private GameObject GetTileSingular()
     {
@@ -42,7 +55,7 @@ public class PlaceRooms : MonoBehaviour
         return null;
     }
 
-    private Vector3 GetTileSquare(int z, int x, Transform tile)
+    private Vector3 GetTileInBoundaries(int z, int x, Transform tile)
     {
         Vector3 position = new Vector3(tile.position.x + x, tile.position.y, tile.position.z + z);
         if(position.x < size / 2 * 10 && position.z < size / 2 * 10 && position.x >= -size / 2 * 10 && position.z >= -size / 2 * 10)
@@ -52,30 +65,23 @@ public class PlaceRooms : MonoBehaviour
         return new Vector3(-1, -1, -1); //arbitary null value
     }
 
-    private void PlaceRoomSingular()
+    private void PlaceRoom(Vector3 position)
     {
-        if (Input.GetMouseButton(0))
+        if (position.x != -1)
         {
-            if (!Miscellaneous.IsPointerOverUIElement())
+            if (!roomPosList.Contains(position))
             {
-                GameObject tile = GetTileSingular();
-                if (tile != null)
+                GameObject room = GameObject.Instantiate(roomPrefabsArray[floorRoomIndex.Key][floorRoomIndex.Value], position, Quaternion.identity, roomParent.transform);
+                room.name = string.Format("({0}, {1}, {2})", position.x, position.y, position.z);
+                roomList.Add(room);
+                roomPosList.Add(room.transform.position);
+                string gridName = string.Format("Tile ({0}, {1})", (int)position.z / 10, (int)position.x / 10);
+                foreach (GameObject gObj in gridArray)
                 {
-                    if (tile.tag == "Base" && !roomPosList.Contains(tile.transform.position))
+                    if (gObj.name == gridName)
                     {
-                        GameObject room = GameObject.Instantiate(roomPrefabsArray[floorRoomIndex.Key][floorRoomIndex.Value], tile.transform.position, Quaternion.identity, roomParent.transform);
-                        room.name = string.Format("({0}, {1}, {2})", tile.transform.position.x, tile.transform.position.y, tile.transform.position.z);
-                        roomList.Add(room);
-                        roomPosList.Add(room.transform.position);
-                        string gridName = string.Format("Tile ({0}, {1})", (int)tile.transform.position.z / 10, (int)tile.transform.position.x / 10);
-                        foreach (GameObject gObj in gridArray)
-                        {
-                            if (gObj.name == gridName)
-                            {
-                                gObj.GetComponent<MeshRenderer>().enabled = false;
-                                break;
-                            }
-                        }
+                        gObj.GetComponent<MeshRenderer>().enabled = false;
+                        break;
                     }
                 }
             }
@@ -99,26 +105,8 @@ public class PlaceRooms : MonoBehaviour
                         {
                             for (int z = -zLimit; z <= zLimit; z += 10)
                             {
-                                Vector3 position = GetTileSquare(z, x, tile.transform);
-                                if (position.x != -1)
-                                {
-                                    if (!roomPosList.Contains(position))
-                                    {
-                                        GameObject room = GameObject.Instantiate(roomPrefabsArray[floorRoomIndex.Key][floorRoomIndex.Value], position, Quaternion.identity, roomParent.transform);
-                                        room.name = string.Format("({0}, {1}, {2})", position.x, position.y, position.z);
-                                        roomList.Add(room);
-                                        roomPosList.Add(room.transform.position);
-                                        string gridName = string.Format("Tile ({0}, {1})", (int)position.z / 10, (int)position.x / 10);
-                                        foreach (GameObject gObj in gridArray)
-                                        {
-                                            if (gObj.name == gridName)
-                                            {
-                                                gObj.GetComponent<MeshRenderer>().enabled = false;
-                                                break;
-                                            }
-                                        }
-                                    }
-                                }
+                                Vector3 position = GetTileInBoundaries(z, x, tile.transform);
+                                PlaceRoom(position);
                             }
                         }
                     }
@@ -127,34 +115,31 @@ public class PlaceRooms : MonoBehaviour
         }
     }
 
-
-    //public static RaycastHit[] SphereCastAll(Ray ray, float radius, float maxDistance = Mathf.Infinity, int layerMask = DefaultRaycastLayers, QueryTriggerInteraction queryTriggerInteraction = QueryTriggerInteraction.UseGlobal); 
-    private void PlaceRoomEclipse(int sizeX, int sizeZ)
+    private void PlaceRoomStar(int radius)
     {
         if (Input.GetMouseButton(0))
         {
             if (!Miscellaneous.IsPointerOverUIElement())
             {
                 GameObject tile = GetTileSingular();
-                Collider[] hits = Physics.OverlapBox(tile.transform.position, new Vector3(sizeX * 6, 5, sizeZ * 6));
-                Debug.Log("Start");
-                foreach (Collider hit in hits)
+                if (tile != null)
                 {
-                    Debug.Log(hit.gameObject.name);
-                    if (!roomPosList.Contains(hit.transform.position))
+                    int xLimit = radius * 10;
+                    int zLimit = 0;
+                    for (int x = -xLimit; x <= xLimit + 20; x += 10)
                     {
-                        GameObject room = GameObject.Instantiate(roomPrefabsArray[floorRoomIndex.Key][floorRoomIndex.Value], hit.transform.position, Quaternion.identity, roomParent.transform);
-                        room.name = string.Format("({0}, {1}, {2})", hit.transform.position.x, hit.transform.position.y, hit.transform.position.z);
-                        roomList.Add(room);
-                        roomPosList.Add(room.transform.position);
-                        string gridName = string.Format("Tile ({0}, {1})", (int)hit.transform.position.z / 10, (int)hit.transform.position.x / 10);
-                        foreach (GameObject gObj in gridArray)
+                        for (int z = -zLimit; z <= zLimit; z += 10)
                         {
-                            if (gObj.name == gridName)
-                            {
-                                gObj.GetComponent<MeshRenderer>().enabled = false;
-                                break;
-                            }
+                            Vector3 position = GetTileInBoundaries(z, x, tile.transform);
+                            PlaceRoom(position);
+                        }
+                        if (x >= 0)
+                        {
+                            zLimit -= 10;
+                        }
+                        else
+                        {
+                            zLimit += 10;
                         }
                     }
                 }
@@ -162,37 +147,30 @@ public class PlaceRooms : MonoBehaviour
         }
     }
 
-    private void RemoveRoomSingular()
+    private void RemoveRoom(Vector3 position)
     {
-        if (Input.GetMouseButton(1))
+        if (position.x != -1)
         {
-            if (!Miscellaneous.IsPointerOverUIElement())
+            if (roomPosList.Contains(position))
             {
-                GameObject tile = GetTileSingular();
-                if (tile != null)
+                string roomName = string.Format("({0}, {1}, {2})", position.x, position.y, position.z);
+                foreach (GameObject gObj in roomList)
                 {
-                    if (tile.tag == "Base" && roomPosList.Contains(tile.transform.position))
+                    if (gObj.name == roomName)
                     {
-                        string roomName = string.Format("({0}, {1}, {2})", tile.transform.position.x, tile.transform.position.y, tile.transform.position.z);
-                        foreach (GameObject gObj in roomList)
-                        {
-                            if (gObj.name == roomName)
-                            {
-                                roomList.Remove(gObj);
-                                roomPosList.Remove(gObj.transform.position);
-                                Destroy(gObj);
-                                break;
-                            }
-                        }
-                        string gridName = string.Format("Tile ({0}, {1})", (int)tile.transform.position.z / 10, (int)tile.transform.position.x / 10);
-                        foreach (GameObject gObj in gridArray)
-                        {
-                            if (gObj.name == gridName)
-                            {
-                                gObj.GetComponent<MeshRenderer>().enabled = true;
-                                break;
-                            }
-                        }
+                        roomList.Remove(gObj);
+                        roomPosList.Remove(gObj.transform.position);
+                        Destroy(gObj);
+                        break;
+                    }
+                }
+                string gridName = string.Format("Tile ({0}, {1})", (int)position.z / 10, (int)position.x / 10);
+                foreach (GameObject gObj in gridArray)
+                {
+                    if (gObj.name == gridName)
+                    {
+                        gObj.GetComponent<MeshRenderer>().enabled = true;
+                        break;
                     }
                 }
             }
@@ -216,35 +194,121 @@ public class PlaceRooms : MonoBehaviour
                         {
                             for (int z = -zLimit; z <= zLimit; z += 10)
                             {
-                                Vector3 position = GetTileSquare(z, x, tile.transform);
-                                if (position.x != -1)
-                                {
-                                    if (roomPosList.Contains(position))
-                                    {
-                                        string roomName = string.Format("({0}, {1}, {2})", position.x, position.y, position.z);
-                                        foreach (GameObject gObj in roomList)
-                                        {
-                                            if (gObj.name == roomName)
-                                            {
-                                                roomList.Remove(gObj);
-                                                roomPosList.Remove(gObj.transform.position);
-                                                Destroy(gObj);
-                                                break;
-                                            }
-                                        }
-                                        string gridName = string.Format("Tile ({0}, {1})", (int)position.z / 10, (int)position.x / 10);
-                                        foreach (GameObject gObj in gridArray)
-                                        {
-                                            if (gObj.name == gridName)
-                                            {
-                                                gObj.GetComponent<MeshRenderer>().enabled = true;
-                                                break;
-                                            }
-                                        }
-                                    }
-                                }
+                                Vector3 position = GetTileInBoundaries(z, x, tile.transform);
+                                RemoveRoom(position);
                             }
                         }
+                    }
+                }
+            }
+        }
+    }
+
+    private void RemoveRoomStar(int radius)
+    {
+        if (Input.GetMouseButton(1))
+        {
+            if (!Miscellaneous.IsPointerOverUIElement())
+            {
+                GameObject tile = GetTileSingular();
+                if (tile != null)
+                {
+                    int xLimit = radius * 10;
+                    int zLimit = 0;
+                    for (int x = -xLimit; x <= xLimit + 20; x += 10)
+                    {
+                        for (int z = -zLimit; z <= zLimit; z += 10)
+                        {
+                            Vector3 position = GetTileInBoundaries(z, x, tile.transform);
+                            RemoveRoom(position);
+                        }
+                        if (x >= 0)
+                        {
+                            zLimit -= 10;
+                        }
+                        else
+                        {
+                            zLimit += 10;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private void RoomHologram(Vector3 position)
+    {
+        if (position.x != -1)
+        {
+            if (!hologramRoomPosList.Contains(position))
+            {
+                GameObject hologram = GameObject.Instantiate(roomPrefabsHologramArray[floorRoomIndex.Key][floorRoomIndex.Value], position, Quaternion.identity, roomParent.transform);
+                hologram.name = string.Format("Hologram: ({0}, {1})", position.x, position.z);
+                hologramRoomList.Add(hologram);
+                hologramRoomPosList.Add(position);
+            }
+        }    
+    }
+
+    private void ResetHologram()
+    {
+        hologramRoomPosList.Clear();
+        for(int i = 0; i < hologramRoomList.Count; i++)
+        {
+            Destroy(hologramRoomList[i]);
+        }
+        hologramRoomList.Clear();
+    }
+
+    private void RoomHologramSquare(int sizeX, int sizeZ)
+    {
+        if (sizeX % 2 != 0 && sizeZ % 2 != 0)
+        {
+            ResetHologram();
+            if (!Miscellaneous.IsPointerOverUIElement())
+            {
+                GameObject tile = GetTileSingular();
+                if (tile != null)
+                {
+                    int xLimit = Mathf.FloorToInt(sizeX / 2) * 10;
+                    int zLimit = Mathf.FloorToInt(sizeZ / 2) * 10;
+                    for (int x = -xLimit; x <= xLimit; x += 10)
+                    {
+                        for (int z = -zLimit; z <= zLimit; z += 10)
+                        {
+                            Vector3 position = GetTileInBoundaries(z, x, tile.transform);
+                            RoomHologram(position);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private void RoomHologramStar(int radius)
+    {
+        ResetHologram();
+        if (!Miscellaneous.IsPointerOverUIElement())
+        {
+            GameObject tile = GetTileSingular();
+            if (tile != null)
+            {
+                int xLimit = radius * 10;
+                int zLimit = 0;
+                for (int x = -xLimit; x <= xLimit + 20; x += 10)
+                {
+                    for (int z = -zLimit; z <= zLimit; z += 10)
+                    {
+                        Vector3 position = GetTileInBoundaries(z, x, tile.transform);
+                        RoomHologram(position);
+                    }
+                    if (x >= 0)
+                    {
+                        zLimit -= 10;
+                    }
+                    else
+                    {
+                        zLimit += 10;
                     }
                 }
             }
@@ -296,6 +360,20 @@ public class PlaceRooms : MonoBehaviour
         };
     }
 
+    private void InitRoomPrefabsHologramArray()
+    {
+        roomPrefabsHologramArray = new Dictionary<int, GameObject>[1]
+        {
+            new Dictionary<int, GameObject>()
+            {
+                {-1,  h_f0R1n},
+                {0,  h_f0R0},
+                {1,  h_f0R1},
+                {2,  h_f0R2},
+            }
+        };
+    }
+
     private void AdjustRoomPrefabsForEditor()
     {
         foreach(Dictionary<int, GameObject> floor in roomPrefabsArray)
@@ -319,9 +397,12 @@ public class PlaceRooms : MonoBehaviour
         InstantiateRoomParent();
         InstantiateGrid();
         InitRoomPrefabsArray();
+        InitRoomPrefabsHologramArray();
         AdjustRoomPrefabsForEditor();
         roomList = new List<GameObject>();
         roomPosList = new List<Vector3>();
+        hologramRoomList = new List<GameObject>();
+        hologramRoomPosList = new List<Vector3>();
         floorRoomIndex = new KeyValuePair<int, int>(0, 0);
     }
 
@@ -330,17 +411,17 @@ public class PlaceRooms : MonoBehaviour
     {
         if (brushIndex == 0)
         {
-            PlaceRoomSingular();
-            RemoveRoomSingular();
+            int[] dimensions = editorMenusScript.GetSquareDimensions();
+            RoomHologramSquare(dimensions[1], dimensions[0]);
+            PlaceRoomSquare(dimensions[1], dimensions[0]);
+            RemoveRoomSquare(dimensions[1], dimensions[0]);
         }
-        else if (brushIndex == 1)
+        else if(brushIndex == 1)
         {
-            PlaceRoomSquare(squareBrushX, squareBrushZ);
-            RemoveRoomSquare(squareBrushX, squareBrushZ);
-        }
-        else if(brushIndex == 2)
-        {
-            PlaceRoomEclipse(squareBrushX, squareBrushZ);
+            int radius = editorMenusScript.GetStarRadius();
+            RoomHologramStar(radius);
+            PlaceRoomStar(radius);
+            RemoveRoomStar(radius);
         }
     }
 }

@@ -15,10 +15,15 @@ public class EditorCameraMovement : MonoBehaviour
     [Header("Controls")]
     public KeyCode boostKey = KeyCode.LeftShift;
 
+    [Header("Screen Dimensions")]
+    public int screenX = 1920;
+    public int screenY = 1080;
+
     private float horizontal;
     private float vertical;
     private float zoom;
     private float boost;
+    private Vector3 mousePos;
 
     private void Move()
     {
@@ -37,10 +42,111 @@ public class EditorCameraMovement : MonoBehaviour
 
     private void Zoom()
     {
-        zoom = Input.GetAxis("Mouse ScrollWheel") * Time.deltaTime * zoomSpeed;
-        if(zoom != 0)
+        if (!Miscellaneous.IsPointerOverUIElement())
         {
-            transform.position = new Vector3(transform.position.x, Mathf.Clamp(transform.position.y + zoom, zoomMin, zoomMax), transform.position.z);
+            zoom = Input.GetAxis("Mouse ScrollWheel");
+            if (zoom != 0)
+            {
+                Ray ray = GetComponent<Camera>().ScreenPointToRay(Input.mousePosition);
+                RaycastHit hit;
+                if(Physics.Raycast(ray, out hit))
+                {
+                    if(zoom > 0)
+                    {
+                        if (hit.distance > 20)
+                        {
+                            transform.position = Vector3.MoveTowards(transform.position, hit.point, zoomSpeed);
+                        }
+                    }
+                    else
+                    {
+                        if (hit.distance < 100)
+                        {
+                            transform.position = Vector3.MoveTowards(transform.position, hit.point, -zoomSpeed);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private void MouseMovement()
+    {
+        mousePos = Input.mousePosition;
+        Debug.Log("NEW LINE");
+        if(mousePos.x >= Screen.width - Screen.width / 20)
+        {
+            Debug.Log("MOVE RIGHT");
+            if (mousePos.y >= Screen.height / 2)
+            {
+                Debug.Log("MOVE UP");
+                transform.Translate(new Vector3(-Time.deltaTime * cameraSpeed * (mousePos.y * 0.4f / Screen.height) / 3, 0, Time.deltaTime * cameraSpeed * (mousePos.x * 0.4f / Screen.width) / 5), Space.World);
+            }
+            else if (mousePos.y < Screen.height / 2)
+            {
+                Debug.Log("MOVE DOWN");
+                transform.Translate(new Vector3(Time.deltaTime * cameraSpeed * ((Screen.height - mousePos.y * 2.5f) / Screen.height) / 3, 0, Time.deltaTime * cameraSpeed * (mousePos.x * 0.4f / Screen.width) / 5), Space.World);
+            }
+            else
+            {
+                transform.Translate(new Vector3(0, 0, Time.deltaTime * cameraSpeed * (mousePos.x * 0.4f / Screen.width) / 5), Space.World);
+            }
+
+        }
+        else if (mousePos.x <= Screen.width / 20)
+        {
+            Debug.Log("MOVE LEFT");
+            if (mousePos.y >= Screen.height / 2)
+            {
+                Debug.Log("MOVE UP");
+                transform.Translate(new Vector3(-Time.deltaTime * cameraSpeed * (mousePos.y * 0.4f / Screen.height) / 3, 0, -Time.deltaTime * cameraSpeed * ((Screen.width - mousePos.x * 2.5f) / Screen.width) / 5), Space.World);
+            }
+            else if (mousePos.y < Screen.height / 2)
+            {
+                Debug.Log("MOVE DOWN");
+                transform.Translate(new Vector3(Time.deltaTime * cameraSpeed * ((Screen.height - mousePos.y * 2.5f) / Screen.height) / 3, 0, -Time.deltaTime * cameraSpeed * ((Screen.width - mousePos.x * 2.5f) / Screen.width) / 5), Space.World);
+            }
+            else
+            {
+                transform.Translate(new Vector3(0, 0, -Time.deltaTime * cameraSpeed * ((Screen.width - mousePos.x * 2.5f) / Screen.width) / 5), Space.World);
+            }
+
+        }
+        else if (mousePos.y >= Screen.height - Screen.height / 20)
+        {
+            Debug.Log("MOVE UP");
+            if (mousePos.x >= Screen.width / 2)
+            {
+                Debug.Log("MOVE RIGHT");
+                transform.Translate(new Vector3(-Time.deltaTime * cameraSpeed * (mousePos.y * 0.4f / Screen.height) / 3, 0, Time.deltaTime * cameraSpeed * (mousePos.x * 0.4f / Screen.width) / 5), Space.World);
+            }
+            else if (mousePos.x < Screen.width/ 2)
+            {
+                Debug.Log("MOVE LEFT");
+                transform.Translate(new Vector3(-Time.deltaTime * cameraSpeed * (mousePos.y * 0.4f / Screen.height) / 3, 0, -Time.deltaTime * cameraSpeed * ((Screen.width - mousePos.x * 2.5f) / Screen.width) / 5), Space.World);
+            }
+            else
+            {
+                transform.Translate(new Vector3(-Time.deltaTime * cameraSpeed * (mousePos.y * 0.4f / Screen.height) / 3, 0, 0), Space.World);
+            }
+        }
+        else if (mousePos.y < Screen.height / 20)
+        {
+            Debug.Log("MOVE DOWN");
+            if (mousePos.x >= Screen.width / 2)
+            {
+                Debug.Log("MOVE RIGHT");
+                transform.Translate(new Vector3(Time.deltaTime * cameraSpeed * ((Screen.height - mousePos.y * 100f) / Screen.height) / 3, 0, Time.deltaTime * cameraSpeed * (mousePos.x * 0.4f / Screen.width) / 5), Space.World);
+            }
+            else if (mousePos.x < Screen.width / 2)
+            {
+                Debug.Log("MOVE LEFT");
+                transform.Translate(new Vector3(Time.deltaTime * cameraSpeed * ((Screen.height - mousePos.y * 100f) / Screen.height) / 3, 0, -Time.deltaTime * cameraSpeed * ((Screen.width - mousePos.x * 2.5f) / Screen.width) / 5), Space.World);
+            }
+            else
+            {
+                transform.Translate(new Vector3(Time.deltaTime * cameraSpeed * ((Screen.height - mousePos.y * 100f) / Screen.height) / 3, 0, 0), Space.World);
+            }
         }
     }
 
@@ -52,6 +158,7 @@ public class EditorCameraMovement : MonoBehaviour
 
     private void Update()
     {
+        MouseMovement();
         Move();
         Zoom();
     }
